@@ -116,7 +116,27 @@ int modify_dacl(const char* ldap_uri, const char* ccache_path,
     gss_buffer_desc input_token = GSS_C_EMPTY_BUFFER;
     gss_buffer_desc output_token = GSS_C_EMPTY_BUFFER;
 
-    major_status = gss_init_sec_context(&minor_status,
+
+    // Use the GSS-API token for LDAP bind
+    struct berval *servcred;
+    
+    struct berval cred;
+    cred.bv_val = (char *)output_token.value;
+    cred.bv_len = output_token.length;
+
+
+    do {
+        rc = ldap_sasl_bind_s(ld, NULL, "GSSAPI", &cred, NULL, NULL, &servcred);
+        
+        if (rc == LDAP_SASL_BIND_IN_PROGRESS) {
+            // If we received a challenge, we need to get a new token from GSS-API
+            if (servcred) {
+                input_token.value = servcred->bv_val;
+                input_token.length = servcred->bv_len;
+                ber_bvfree(servcred);
+            }
+            
+            major_status = gss_init_sec_context(&minor_status,
                                         creds,
                                         &gss_context,
                                         target_name,
@@ -130,28 +150,24 @@ int modify_dacl(const char* ldap_uri, const char* ccache_path,
                                         NULL,
                                         NULL);
 
-    if (major_status != GSS_S_COMPLETE && major_status != GSS_S_CONTINUE_NEEDED) {
-        fprintf(stderr, "[ERROR] gss_init_sec_context failed: ");
-        print_gss_error(major_status, minor_status);
-        goto cleanup;
-    }
+            if (major_status != GSS_S_COMPLETE && major_status != GSS_S_CONTINUE_NEEDED) {
+                fprintf(stderr, "[ERROR] gss_init_sec_context failed: ");
+                print_gss_error(major_status, minor_status);
+                goto cleanup;
+            }
+            // Prepare the new token for the next iteration
+            cred.bv_val = (char *)output_token.value;
+            cred.bv_len = output_token.length;
+            printf("[DEBUG] %s\n", cred.bv_val);
+        }
+    } while (rc == LDAP_SASL_BIND_IN_PROGRESS);
 
-    // Use the GSS-API token for LDAP bind
-    struct berval *servcred;
-    
-    struct berval cred;
-    cred.bv_val = (char *)output_token.value;
-    cred.bv_len = output_token.length;
-
-    char *mech = "GSSAPI";
-    unsigned sasl_flags = LDAP_SASL_QUIET;
-
-    rc = ldap_sasl_interactive_bind_s(ld, NULL, mech, &cred, NULL, sasl_flags, NULL, &servcred);
-    if (rc != LDAP_SASL_BIND_IN_PROGRESS) {
+    if (rc != LDAP_SUCCESS) {
         fprintf(stderr, "LDAP bind failed: %s\n", ldap_err2string(rc));
-        return 1;
+        // Handle error...
+    } else {
+        printf("[DEBUG] LDAP bind successful\n");
     }
-    printf("[DEBUG] LDAP bind successful\n");
 
     printf( "Server credentials: %s\n", servcred->bv_val );
 
