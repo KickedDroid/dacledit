@@ -16,8 +16,8 @@ fn main() {
     println!("cargo:rustc-link-lib=ldap");
     println!("cargo:rustc-link-lib=lber");
     println!("cargo:rustc-link-lib=krb5");
-
+    println!("cargo:rustc-link-lib=gssapi_krb5");
     // Tell cargo to invalidate the built crate whenever the C file changes
-    //println!("cargo:rerun-if-changed=dacledit.c");
+    println!("cargo:rerun-if-changed=dacledit.c");
     // THis is not working for some reason 
 }
