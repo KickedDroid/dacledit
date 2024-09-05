@@ -8,6 +8,8 @@ clap = { version = "4.0", features = ["derive"] }
 lazy_static = "1.4.0"
 bitflags = "1.3"
 uuid = { version = "1.3.0", features = ["v4"] }
+ldap3 = {version="0.11.5", features=["gssapi"]}
+tokio = {version="1.40.0", features=["full"]}
 
 
 [build-dependencies]

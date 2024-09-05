@@ -2,6 +2,8 @@ use std::env;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_int};
 
+use crate::sids::{AccessMask, RIGHTS_GUID_MAP, SIMPLE_PERMISSIONS_MAP, WELL_KNOWN_SIDS};
+
 extern "C" {
     fn modify_dacl(
         ldap_uri: *const c_char,
@@ -50,3 +52,5 @@ pub fn rust_modify_dacl(
         Err(format!("[Native.rs] - modify_dacl failed with error code: {}", result))
     }
 }
+
+
